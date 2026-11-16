@@ -24,7 +24,7 @@ trap 'rm -rf "$STAGE"' EXIT
 app="$STAGE/root/HcloudSetup.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$PKG_DIR/Info.plist" "$app/Contents/Info.plist"
-cp "$SOURCE/HcloudSetup.command" "$app/Contents/MacOS/HcloudSetup"
+cp "$SOURCE/setup.command" "$app/Contents/MacOS/HcloudSetup"
 chmod 755 "$app/Contents/MacOS/HcloudSetup"
 cp -R "$SOURCE/actions" "$SOURCE/detect" "$SOURCE/ui" "$app/Contents/Resources/"
 

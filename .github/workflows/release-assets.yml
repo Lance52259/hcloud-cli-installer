@@ -67,10 +67,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: installer/windows/exe/go.mod
+          go-version-file: installer/windows/go.mod
 
       - name: Build the Windows installer
-        working-directory: installer/windows/exe
+        working-directory: installer/windows
         env:
           CGO_ENABLED: "0"
           GOOS: windows
@@ -80,7 +80,7 @@ jobs:
           go build -ldflags "-H windowsgui -s -w" -o huaweicloud-cli-setup-windows-amd64.exe .
 
       - name: Upload the Windows installer
-        working-directory: installer/windows/exe
+        working-directory: installer/windows
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}

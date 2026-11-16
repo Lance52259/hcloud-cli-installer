@@ -2,7 +2,7 @@
 # 安装器不包含 CLI 本体，进度步骤从 GitHub Releases 下载。
 #
 # 在 Windows PowerShell 中运行：
-#   powershell -NoProfile -ExecutionPolicy Bypass -STA -File installer\windows\powershell\HcloudSetup.ps1
+#   powershell -NoProfile -ExecutionPolicy Bypass -STA -File installer\windows\setup.ps1
 # 发布出的 huaweicloud-cli-setup-windows-amd64.exe 用同样的参数启动本脚本。
 #Requires -Version 5.1
 
