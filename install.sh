@@ -93,12 +93,44 @@ place_binary() {
   fi
   printf 'installed: %s\n' "$dest"
   if [[ "$OS_FAMILY" == "windows" ]]; then
-    local shown="$INSTALL_DIR"
-    if command -v cygpath >/dev/null 2>&1; then
-      shown=$(cygpath -w "$INSTALL_DIR")
-    fi
-    printf 'Add this directory to PATH if needed: %s\n' "$shown"
+    add_windows_user_path
   fi
+}
+
+add_windows_user_path() {
+  local dir_win ps1
+  if ! command -v powershell.exe >/dev/null 2>&1 || ! command -v cygpath >/dev/null 2>&1; then
+    printf 'Open a new terminal, then run: hcloud version\n'
+    return
+  fi
+  dir_win=$(cygpath -w "$INSTALL_DIR")
+  ps1="${workdir}/add-path.ps1"
+  cat >"$ps1" <<'EOF'
+param([Parameter(Mandatory = $true)][string]$Dir)
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+if ($null -eq $userPath) { $userPath = '' }
+$normalized = $Dir.TrimEnd('\')
+$exists = $false
+foreach ($part in ($userPath -split ';')) {
+  if ($part.TrimEnd('\') -ieq $normalized) {
+    $exists = $true
+    break
+  }
+}
+if (-not $exists) {
+  if ($userPath -eq '') {
+    $updated = $Dir
+  } else {
+    $updated = $userPath.TrimEnd(';') + ';' + $Dir
+  }
+  [Environment]::SetEnvironmentVariable('Path', $updated, 'User')
+  Write-Output "Added to user PATH: $Dir"
+} else {
+  Write-Output "User PATH already contains: $Dir"
+}
+Write-Output "Open a new terminal, then run: hcloud version"
+EOF
+  powershell.exe -NoProfile -NonInteractive -File "$(cygpath -w "$ps1")" -Dir "$dir_win"
 }
 
 extract_zip() {
