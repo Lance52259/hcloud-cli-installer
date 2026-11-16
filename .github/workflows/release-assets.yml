@@ -30,13 +30,13 @@ jobs:
           set -euo pipefail
           assets=()
           if [[ -f debug/huaweicloud-cli-linux-amd64.tar.gz ]]; then
-            assets+=("debug/huaweicloud-cli-linux-amd64.tar.gz#hcloud-cli-linux-amd64.tgz")
+            assets+=("debug/huaweicloud-cli-linux-amd64.tar.gz")
           fi
           if [[ -f debug/huaweicloud-cli-linux-arm64.tar.gz ]]; then
-            assets+=("debug/huaweicloud-cli-linux-arm64.tar.gz#hcloud-cli-linux-arm64.tgz")
+            assets+=("debug/huaweicloud-cli-linux-arm64.tar.gz")
           fi
           if [[ -f debug/huaweicloud-cli-windows-amd64.zip ]]; then
-            assets+=("debug/huaweicloud-cli-windows-amd64.zip#hcloud-cli-windows-amd64.zip")
+            assets+=("debug/huaweicloud-cli-windows-amd64.zip")
           fi
           if [[ ${#assets[@]} -eq 0 ]]; then
             echo "The release tag has no packages under debug/." >&2
