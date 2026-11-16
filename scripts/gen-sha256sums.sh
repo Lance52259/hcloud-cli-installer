@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
-# 为准备上传到 GitHub Releases 的目录生成 SHA256SUMS（只收录该目录下的 .tgz）。
+# 为目录中的安装包生成 SHA256SUMS。
+# 只收录该目录下一层的 .tar.gz、.tgz 和 .zip，不进入子目录。
+# 结果写到同一目录的 SHA256SUMS，每行是 "<sha256>  <文件名>"。
+# 安装脚本不读取这个文件。
 set -euo pipefail
 
-if [[ $# -ne 1 || "$1" == "-h" || "$1" == "--help" ]]; then
-  echo "用法: $0 <包含 .tgz 的目录>" >&2
+usage() {
+  cat <<'EOF'
+用法: gen-sha256sums.sh <目录>
+
+为该目录中的 .tar.gz、.tgz 和 .zip 生成 SHA256SUMS。
+EOF
+}
+
+if [[ $# -eq 1 && ( "$1" == "-h" || "$1" == "--help" ) ]]; then
+  usage
+  exit 0
+fi
+
+if [[ $# -ne 1 ]]; then
+  usage >&2
   exit 1
 fi
 
@@ -19,17 +35,23 @@ if ! command -v sha256sum >/dev/null 2>&1; then
 fi
 
 shopt -s nullglob
-files=("$dir"/*.tgz)
-if [[ ${#files[@]} -eq 0 ]]; then
-  echo "目录中没有 .tgz: $dir" >&2
+archives=()
+for pattern in '*.tar.gz' '*.tgz' '*.zip'; do
+  for path in "$dir"/$pattern; do
+    archives+=("$(basename -- "$path")")
+  done
+done
+
+if [[ ${#archives[@]} -eq 0 ]]; then
+  echo "目录中没有 .tar.gz、.tgz 或 .zip: $dir" >&2
   exit 1
 fi
 
+mapfile -t archives < <(printf '%s\n' "${archives[@]}" | sort)
+
 (
   cd "$dir"
-  for archive in *.tgz; do
-    sha256sum "$archive"
-  done
+  sha256sum -- "${archives[@]}"
 ) >"$dir/SHA256SUMS"
 
 echo "已写入 $dir/SHA256SUMS"
