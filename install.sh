@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # -v / --version 选择版本（默认 latest）。
-# 按架构下载 .tgz，解压出顶层可执行文件，安装到 /usr/local/bin。
+# Linux 安装到 /usr/local/bin/hcloud。
+# Windows（Git Bash / MSYS / Cygwin）安装到 %LOCALAPPDATA%\hcloud\hcloud.exe。
 #
 # 临时发布包（GitHub Releases）:
-#   hcloud-cli-linux-<arch>.tgz
+#   Linux:   hcloud-cli-linux-<arch>.tgz
+#   Windows: hcloud-cli-windows-amd64.zip
 # 仓库内调试包（-v debug）:
 #   debug/huaweicloud-cli-linux-<arch>.tar.gz
+#   debug/huaweicloud-cli-windows-amd64.zip
 set -euo pipefail
 
 RELEASE_BASE="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-storage/releases}"
@@ -16,13 +19,16 @@ BIN_NAME="hcloud"
 show_help() {
   cat <<'EOF'
 
-华为云命令行工具安装程序
+HWCloudCLI installer
 
--h                     显示帮助并退出
--v, --version VERSION  指定版本，默认 latest
-                       debug 表示安装本仓库 debug/ 中的当前调试二进制
+-h                     Show this help and exit
+-v, --version VERSION  Version to install. Default is latest.
+                       "debug" installs the current build from debug/.
 
-示例:
+Linux supports amd64 and arm64. Windows supports amd64.
+On Windows, run this script from Git Bash.
+
+Examples:
   install.sh
   install.sh -v v0.1.0
   install.sh --version debug
@@ -39,56 +45,18 @@ need_value() {
   local flag=$1
   local value=${2:-}
   if [[ -z "$value" || "$value" == -* ]]; then
-    abort "${flag} 需要一个参数"
+    abort "${flag} requires a value"
   fi
 }
-
-VERSION="latest"
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -h)
-      show_help
-      exit 0
-      ;;
-    -v|--version)
-      need_value "$@"
-      VERSION=$2
-      shift 2
-      ;;
-    --version=*)
-      VERSION=${1#--version=}
-      if [[ -z "$VERSION" ]]; then
-        abort "--version 需要一个参数"
-      fi
-      shift
-      ;;
-    *)
-      abort "未知参数: $1"
-      ;;
-  esac
-done
-
-if [[ "$(uname)" != "Linux" ]]; then
-  abort "目前仅支持 Linux。"
-fi
-
-case "$(uname -m)" in
-  x86_64|amd64) ARCH="amd64" ;;
-  aarch64|arm64) ARCH="arm64" ;;
-  *) abort "目前仅支持 amd64 与 arm64，检测到: $(uname -m)" ;;
-esac
-
-if [[ "$VERSION" != "latest" && "$VERSION" != "debug" && ! "$VERSION" =~ ^[A-Za-z0-9._+-]+$ ]]; then
-  abort "版本号无效: ${VERSION}"
-fi
 
 fetch() {
   local url=$1
   local dest=$2
   if ! command -v curl >/dev/null 2>&1; then
-    abort "需要 curl。"
+    abort "curl is required."
   fi
-  curl -fsSL --retry 3 --retry-delay 1 -o "$dest" "$url" || abort "下载失败: ${url}"
+  printf 'Downloading %s\n' "$url"
+  curl -fsSL --retry 3 --retry-delay 1 -o "$dest" "$url" || abort "download failed: ${url}"
 }
 
 place_binary() {
@@ -109,8 +77,11 @@ place_binary() {
   fi
 
   if [[ "$use_sudo" -eq 1 ]]; then
+    if [[ "$OS_FAMILY" == "windows" ]]; then
+      abort "cannot write to ${INSTALL_DIR}."
+    fi
     if ! command -v sudo >/dev/null 2>&1; then
-      abort "无法写入 ${INSTALL_DIR}，请使用 sudo 重新执行。"
+      abort "cannot write to ${INSTALL_DIR}; rerun with sudo."
     fi
     sudo mkdir -p "$INSTALL_DIR"
     sudo cp "$src" "$dest"
@@ -120,37 +91,130 @@ place_binary() {
     cp "$src" "$dest"
     chmod 755 "$dest"
   fi
-  printf '已安装: %s\n' "$dest"
+  printf 'installed: %s\n' "$dest"
+  if [[ "$OS_FAMILY" == "windows" ]]; then
+    local shown="$INSTALL_DIR"
+    if command -v cygpath >/dev/null 2>&1; then
+      shown=$(cygpath -w "$INSTALL_DIR")
+    fi
+    printf 'Add this directory to PATH if needed: %s\n' "$shown"
+  fi
+}
+
+extract_zip() {
+  local archive_path=$1
+  local dest=$2
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -oq "$archive_path" -d "$dest"
+    return
+  fi
+  if command -v powershell.exe >/dev/null 2>&1 && command -v cygpath >/dev/null 2>&1; then
+    powershell.exe -NoProfile -NonInteractive -Command "Expand-Archive -Force -LiteralPath '$(cygpath -w "$archive_path")' -DestinationPath '$(cygpath -w "$dest")'"
+    return
+  fi
+  abort "unzip is required to extract the Windows archive."
 }
 
 install_archive() {
   local archive_url=$1
   local archive_name=$2
   fetch "$archive_url" "${workdir}/${archive_name}"
-  tar zxf "${workdir}/${archive_name}" -C "$workdir"
+  case "$archive_name" in
+    *.zip) extract_zip "${workdir}/${archive_name}" "$workdir" ;;
+    *) tar zxf "${workdir}/${archive_name}" -C "$workdir" ;;
+  esac
   if [[ ! -f "${workdir}/${BIN_NAME}" ]]; then
-    abort "压缩包顶层未找到 ${BIN_NAME}。请确认解压后当前目录下直接是可执行文件 ${BIN_NAME}。"
+    abort "archive has no top-level ${BIN_NAME} executable."
   fi
   chmod +x "${workdir}/${BIN_NAME}"
   place_binary "${workdir}/${BIN_NAME}"
 }
 
+VERSION="latest"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h)
+      show_help
+      exit 0
+      ;;
+    -v|--version)
+      need_value "$@"
+      VERSION=$2
+      shift 2
+      ;;
+    --version=*)
+      VERSION=${1#--version=}
+      if [[ -z "$VERSION" ]]; then
+        abort "--version requires a value"
+      fi
+      shift
+      ;;
+    *)
+      abort "unknown argument: $1"
+      ;;
+  esac
+done
+
+kernel=$(uname -s)
+case "$kernel" in
+  Linux) OS_FAMILY="linux" ;;
+  MINGW*|MSYS*|CYGWIN*) OS_FAMILY="windows" ;;
+  *) abort "only Linux and Windows are supported." ;;
+esac
+
+machine=$(uname -m)
+case "$machine" in
+  x86_64|amd64) ARCH="amd64" ;;
+  aarch64|arm64)
+    if [[ "$OS_FAMILY" == "windows" ]]; then
+      abort "only amd64 is supported on Windows, found: ${machine}"
+    fi
+    ARCH="arm64"
+    ;;
+  *) abort "only amd64 and arm64 are supported, found: ${machine}" ;;
+esac
+
+if [[ "$OS_FAMILY" == "windows" ]]; then
+  BIN_NAME="hcloud.exe"
+  if [[ -z "${HCLOUD_INSTALL_DIR:-}" ]]; then
+    if [[ -n "${LOCALAPPDATA:-}" ]] && command -v cygpath >/dev/null 2>&1; then
+      INSTALL_DIR="$(cygpath -u "$LOCALAPPDATA")/hcloud"
+    else
+      INSTALL_DIR="${HOME}/hcloud"
+    fi
+  fi
+fi
+
+if [[ "$VERSION" != "latest" && "$VERSION" != "debug" && ! "$VERSION" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+  abort "invalid version: ${VERSION}"
+fi
+
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 
-if [[ "$VERSION" == "debug" ]]; then
+if [[ "$OS_FAMILY" == "windows" ]]; then
+  if [[ "$VERSION" == "debug" ]]; then
+    archive="huaweicloud-cli-windows-${ARCH}.zip"
+    archive_url="${DEBUG_BASE}/${archive}"
+  else
+    archive="hcloud-cli-windows-${ARCH}.zip"
+    if [[ "$VERSION" == "latest" ]]; then
+      archive_url="${RELEASE_BASE}/latest/download/${archive}"
+    else
+      archive_url="${RELEASE_BASE}/download/${VERSION}/${archive}"
+    fi
+  fi
+elif [[ "$VERSION" == "debug" ]]; then
   archive="huaweicloud-cli-linux-${ARCH}.tar.gz"
-  printf '正在安装 HWCloudCLI（debug，linux/%s）...\n' "$ARCH"
-  install_archive "${DEBUG_BASE}/${archive}" "$archive"
-  exit 0
-fi
-
-archive="hcloud-cli-linux-${ARCH}.tgz"
-if [[ "$VERSION" == "latest" ]]; then
-  archive_url="${RELEASE_BASE}/latest/download/${archive}"
+  archive_url="${DEBUG_BASE}/${archive}"
 else
-  archive_url="${RELEASE_BASE}/download/${VERSION}/${archive}"
+  archive="hcloud-cli-linux-${ARCH}.tgz"
+  if [[ "$VERSION" == "latest" ]]; then
+    archive_url="${RELEASE_BASE}/latest/download/${archive}"
+  else
+    archive_url="${RELEASE_BASE}/download/${VERSION}/${archive}"
+  fi
 fi
 
-printf '正在安装 HWCloudCLI（%s，linux/%s）...\n' "$VERSION" "$ARCH"
+printf 'Installing HWCloudCLI (%s, %s/%s)...\n' "$VERSION" "$OS_FAMILY" "$ARCH"
 install_archive "$archive_url" "$archive"
