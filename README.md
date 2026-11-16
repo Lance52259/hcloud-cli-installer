@@ -48,7 +48,7 @@ HWCloudCLI 尚未开源，也还没有官方发布仓库。本仓库暂时做两
 ```bash
 bash install.sh
 bash install.sh -v 1.2.0
-bash install.sh --version debug
+bash install.sh --version latest
 ```
 
 从 `master` 上的脚本远程执行：
@@ -66,8 +66,8 @@ curl -fsSL https://raw.githubusercontent.com/Lance52259/hcloud-cli-storage/maste
 | `-h` | 显示帮助 | |
 | `-v`, `--version` | `latest`、Release 标签 | `latest` |
 
-`latest` 按当前系统下载 `releases/latest/download/` 下的对应附件。指定标签时下载 `releases/download/<标签>/` 下的同名文件。`-v debug` 下载 `debug/` 中当前系统的压缩包：Linux 为 `huaweicloud-cli-linux-<arch>.tar.gz`，Windows 为 `huaweicloud-cli-windows-amd64.zip`。
+不带参数和 `-v latest` 都下载 `releases/latest/download/` 下当前系统的附件。`-v <标签>` 下载 `releases/download/<标签>/` 下的同名文件。Linux 文件名是 `huaweicloud-cli-linux-<arch>.tar.gz`，Windows 是 `huaweicloud-cli-windows-amd64.zip`。
 
 Windows 请在 Git Bash 中执行上面的命令。当前没有 Windows arm64 安装包。
 
-可用环境变量改安装位置或下载根地址：`HCLOUD_INSTALL_DIR`、`HCLOUD_RELEASE_DOWNLOAD_BASE`、`HCLOUD_DEBUG_BASE`。
+可用环境变量改安装位置或 Release 根地址：`HCLOUD_INSTALL_DIR`、`HCLOUD_RELEASE_DOWNLOAD_BASE`。
