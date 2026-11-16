@@ -128,7 +128,10 @@ if (-not $exists) {
 } else {
   Write-Output "User PATH already contains: $Dir"
 }
-Write-Output "Open a new terminal, then run: hcloud version"
+Write-Output "This window still has the old PATH."
+Write-Output "Open a new PowerShell window and run: hcloud version"
+Write-Output "Or run this in the current window:"
+Write-Output ('  $env:Path += ";' + $Dir + '"')
 EOF
   powershell.exe -NoProfile -NonInteractive -File "$(cygpath -w "$ps1")" -Dir "$dir_win"
 }

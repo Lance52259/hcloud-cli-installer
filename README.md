@@ -24,7 +24,7 @@ HWCloudCLI 尚未开源，也还没有官方发布仓库。本仓库暂时做两
 
 ## GitHub Releases
 
-临时发布版本创建为本仓库的 Release，标签即版本号（例如 `v0.1.0`）。每个 Release 上传同名附件：
+临时发布版本创建为本仓库的 Release，标签即版本号（例如 `1.0.0`）。发布 Release 后，`.github/workflows/release-assets.yml` 会把该标签提交里 `debug/` 的安装包上传为同名附件：
 
 - `hcloud-cli-linux-amd64.tgz`
 - `hcloud-cli-linux-arm64.tgz`
