@@ -2,7 +2,7 @@
 # 为目录中的安装包生成 SHA256SUMS。
 # 只收录该目录下一层的 .tar.gz、.tgz 和 .zip，不进入子目录。
 # 结果写到同一目录的 SHA256SUMS，每行是 "<sha256>  <文件名>"。
-# 安装脚本不读取这个文件。
+# 发布 workflow 按同样格式为实际上传的压缩包生成 Release 附件。
 set -euo pipefail
 
 usage() {

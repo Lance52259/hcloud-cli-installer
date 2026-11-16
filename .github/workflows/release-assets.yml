@@ -42,4 +42,16 @@ jobs:
             echo "The release tag has no packages under debug/." >&2
             exit 1
           fi
+          stage=$(mktemp -d)
+          names=()
+          for path in "${assets[@]}"; do
+            cp -- "$path" "$stage/"
+            names+=("$(basename -- "$path")")
+          done
+          mapfile -t names < <(printf '%s\n' "${names[@]}" | sort)
+          (
+            cd "$stage"
+            sha256sum -- "${names[@]}"
+          ) >"$stage/SHA256SUMS"
+          assets+=("$stage/SHA256SUMS")
           gh release upload "$TAG" "${assets[@]}" --clobber
