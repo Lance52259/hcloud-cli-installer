@@ -40,7 +40,6 @@ pkgbuild \
 mkdir -p "$DIST" "$STAGE/resources"
 cp "$PKG_DIR/welcome.html" "$STAGE/resources/welcome.html"
 cp "$PKG_DIR/distribution.xml" "$STAGE/distribution.xml"
-cp "$COMPONENT" "$STAGE/hcloud-setup-component.pkg"
 productbuild \
   --distribution "$STAGE/distribution.xml" \
   --resources "$STAGE/resources" \
