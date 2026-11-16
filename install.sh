@@ -3,12 +3,9 @@
 # Linux 安装到 /usr/local/bin/hcloud。
 # Windows（Git Bash / MSYS / Cygwin）安装到 %LOCALAPPDATA%\hcloud\hcloud.exe。
 #
-# 临时发布包（GitHub Releases）:
-#   Linux:   hcloud-cli-linux-<arch>.tgz
-#   Windows: hcloud-cli-windows-amd64.zip
-# 仓库内调试包（-v debug）:
-#   debug/huaweicloud-cli-linux-<arch>.tar.gz
-#   debug/huaweicloud-cli-windows-amd64.zip
+# 调试包和 Release 附件使用同一文件名：
+#   Linux:   huaweicloud-cli-linux-<arch>.tar.gz
+#   Windows: huaweicloud-cli-windows-amd64.zip
 set -euo pipefail
 
 RELEASE_BASE="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-storage/releases}"
@@ -232,7 +229,7 @@ if [[ "$OS_FAMILY" == "windows" ]]; then
     archive="huaweicloud-cli-windows-${ARCH}.zip"
     archive_url="${DEBUG_BASE}/${archive}"
   else
-    archive="hcloud-cli-windows-${ARCH}.zip"
+    archive="huaweicloud-cli-windows-${ARCH}.zip"
     if [[ "$VERSION" == "latest" ]]; then
       archive_url="${RELEASE_BASE}/latest/download/${archive}"
     else
@@ -243,7 +240,7 @@ elif [[ "$VERSION" == "debug" ]]; then
   archive="huaweicloud-cli-linux-${ARCH}.tar.gz"
   archive_url="${DEBUG_BASE}/${archive}"
 else
-  archive="hcloud-cli-linux-${ARCH}.tgz"
+  archive="huaweicloud-cli-linux-${ARCH}.tar.gz"
   if [[ "$VERSION" == "latest" ]]; then
     archive_url="${RELEASE_BASE}/latest/download/${archive}"
   else

@@ -26,9 +26,9 @@ HWCloudCLI 尚未开源，也还没有官方发布仓库。本仓库暂时做两
 
 临时发布版本创建为本仓库的 Release，标签即版本号（例如 `1.0.0`）。发布 Release 后，`.github/workflows/release-assets.yml` 会把该标签提交里 `debug/` 的安装包上传为同名附件：
 
-- `hcloud-cli-linux-amd64.tgz`
-- `hcloud-cli-linux-arm64.tgz`
-- `hcloud-cli-windows-amd64.zip`
+- `huaweicloud-cli-linux-amd64.tar.gz`
+- `huaweicloud-cli-linux-arm64.tar.gz`
+- `huaweicloud-cli-windows-amd64.zip`
 
 Linux 包解压后，当前目录下应直接得到 `hcloud`。Windows 包解压后应直接得到 `hcloud.exe`。各 Release 的附件名保持一致，这样默认的 `latest` 和 `-v <标签>` 才能下载到同一文件名。
 
