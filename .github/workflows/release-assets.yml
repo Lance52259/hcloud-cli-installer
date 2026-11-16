@@ -1,0 +1,45 @@
+name: Upload release packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to upload packages to
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+
+      - name: Upload debug packages as release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          assets=()
+          if [[ -f debug/huaweicloud-cli-linux-amd64.tar.gz ]]; then
+            assets+=("debug/huaweicloud-cli-linux-amd64.tar.gz#hcloud-cli-linux-amd64.tgz")
+          fi
+          if [[ -f debug/huaweicloud-cli-linux-arm64.tar.gz ]]; then
+            assets+=("debug/huaweicloud-cli-linux-arm64.tar.gz#hcloud-cli-linux-arm64.tgz")
+          fi
+          if [[ -f debug/huaweicloud-cli-windows-amd64.zip ]]; then
+            assets+=("debug/huaweicloud-cli-windows-amd64.zip#hcloud-cli-windows-amd64.zip")
+          fi
+          if [[ ${#assets[@]} -eq 0 ]]; then
+            echo "The release tag has no packages under debug/." >&2
+            exit 1
+          fi
+          gh release upload "$TAG" "${assets[@]}" --clobber
