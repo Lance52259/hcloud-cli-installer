@@ -1,0 +1,10 @@
+#!/bin/bash
+# 安装包结束时打开向导。用当前登录用户启动，避免以 root 运行界面。
+
+app="/Applications/HcloudSetup.app"
+console_user=$(stat -f '%Su' /dev/console 2>/dev/null || true)
+if [ -n "$console_user" ] && [ "$console_user" != "root" ] && [ -d "$app" ]; then
+  uid=$(id -u "$console_user")
+  launchctl asuser "$uid" open "$app" || sudo -u "$console_user" open "$app" || true
+fi
+exit 0

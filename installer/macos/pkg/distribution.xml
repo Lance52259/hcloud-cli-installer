@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>华为云命令行工具安装程序</title>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="false" hostArchitectures="x86_64,arm64"/>
+    <choices-outline>
+        <line choice="setup"/>
+    </choices-outline>
+    <choice id="setup" visible="false" title="华为云命令行工具安装程序">
+        <pkg-ref id="com.huaweicloud.hcloud.setup"/>
+    </choice>
+    <pkg-ref id="com.huaweicloud.hcloud.setup" version="1.0.0" auth="root">hcloud-setup-component.pkg</pkg-ref>
+</installer-gui-script>
