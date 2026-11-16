@@ -1,7 +1,7 @@
 # 从 GitHub Releases 查询、下载并校验 macOS 安装包。不读取 debug/。
 
 release_base() {
-  local base="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-storage/releases}"
+  local base="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-installer/releases}"
   base=${base%/}
   printf '%s' "$base"
 }
