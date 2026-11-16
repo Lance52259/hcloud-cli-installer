@@ -4,8 +4,8 @@
 #
 # 临时发布包（GitHub Releases）:
 #   hcloud-cli-linux-<arch>.tgz
-# 仓库内调试二进制（-v debug）:
-#   debug/hcloud_linux_<arch>
+# 仓库内调试包（-v debug）:
+#   debug/huaweicloud-cli-linux-<arch>.tar.gz
 set -euo pipefail
 
 RELEASE_BASE="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-storage/releases}"
@@ -123,15 +123,25 @@ place_binary() {
   printf '已安装: %s\n' "$dest"
 }
 
+install_archive() {
+  local archive_url=$1
+  local archive_name=$2
+  fetch "$archive_url" "${workdir}/${archive_name}"
+  tar zxf "${workdir}/${archive_name}" -C "$workdir"
+  if [[ ! -f "${workdir}/${BIN_NAME}" ]]; then
+    abort "压缩包顶层未找到 ${BIN_NAME}。请确认解压后当前目录下直接是可执行文件 ${BIN_NAME}。"
+  fi
+  chmod +x "${workdir}/${BIN_NAME}"
+  place_binary "${workdir}/${BIN_NAME}"
+}
+
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 
 if [[ "$VERSION" == "debug" ]]; then
-  binary_url="${DEBUG_BASE}/hcloud_linux_${ARCH}"
+  archive="huaweicloud-cli-linux-${ARCH}.tar.gz"
   printf '正在安装 HWCloudCLI（debug，linux/%s）...\n' "$ARCH"
-  fetch "$binary_url" "${workdir}/${BIN_NAME}"
-  chmod +x "${workdir}/${BIN_NAME}"
-  place_binary "${workdir}/${BIN_NAME}"
+  install_archive "${DEBUG_BASE}/${archive}" "$archive"
   exit 0
 fi
 
@@ -143,10 +153,4 @@ else
 fi
 
 printf '正在安装 HWCloudCLI（%s，linux/%s）...\n' "$VERSION" "$ARCH"
-fetch "$archive_url" "${workdir}/${archive}"
-tar zxf "${workdir}/${archive}" -C "$workdir"
-if [[ ! -f "${workdir}/${BIN_NAME}" ]]; then
-  abort "压缩包顶层未找到 ${BIN_NAME}。请确认解压后当前目录下直接是可执行文件 ${BIN_NAME}。"
-fi
-chmod +x "${workdir}/${BIN_NAME}"
-place_binary "${workdir}/${BIN_NAME}"
+install_archive "$archive_url" "$archive"

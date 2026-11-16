@@ -15,11 +15,11 @@ HWCloudCLI 尚未开源，也还没有官方发布仓库。本仓库暂时做两
 ├── scripts/
 │   └── gen-sha256sums.sh
 └── debug/
-    ├── hcloud_linux_amd64
-    └── hcloud_linux_arm64
+    ├── huaweicloud-cli-linux-amd64.tar.gz
+    └── huaweicloud-cli-linux-arm64.tar.gz
 ```
 
-`debug/` 只放这两个未压缩的可执行文件。仓库里不存放版本目录。提交到这里的单个文件需小于 GitHub 约 100MB 的限制。
+`debug/` 放这两个压缩包。解压后顶层应直接是可执行文件 `hcloud`。仓库里不存放版本目录。提交到这里的单个文件需小于 GitHub 约 100MB 的限制。
 
 ## GitHub Releases
 
@@ -58,6 +58,6 @@ curl -fsSL https://raw.githubusercontent.com/Lance52259/hcloud-cli-storage/maste
 | `-h` | 显示帮助 | |
 | `-v`, `--version` | `latest`、Release 标签，或 `debug` | `latest` |
 
-`latest` 下载 `releases/latest/download/hcloud-cli-linux-<arch>.tgz`。指定标签时下载 `releases/download/<标签>/` 下的同名文件。`-v debug` 下载 `debug/hcloud_linux_<arch>`，不经过压缩包。
+`latest` 下载 `releases/latest/download/hcloud-cli-linux-<arch>.tgz`。指定标签时下载 `releases/download/<标签>/` 下的同名文件。`-v debug` 下载 `debug/huaweicloud-cli-linux-<arch>.tar.gz` 并解压出 `hcloud`。
 
 可用环境变量改安装位置或下载根地址：`HCLOUD_INSTALL_DIR`、`HCLOUD_RELEASE_DOWNLOAD_BASE`、`HCLOUD_DEBUG_BASE`。
