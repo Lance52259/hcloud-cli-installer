@@ -55,3 +55,55 @@ jobs:
           ) >"$stage/SHA256SUMS"
           assets+=("$stage/SHA256SUMS")
           gh release upload "$TAG" "${assets[@]}" --clobber
+
+  setup-windows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: installer/windows/exe/go.mod
+
+      - name: Build the Windows installer
+        working-directory: installer/windows/exe
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          set -euo pipefail
+          go build -ldflags "-H windowsgui -s -w" -o huaweicloud-cli-setup-windows-amd64.exe .
+
+      - name: Upload the Windows installer
+        working-directory: installer/windows/exe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" huaweicloud-cli-setup-windows-amd64.exe --clobber
+
+  setup-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+
+      - name: Build the macOS installer
+        run: bash installer/macos/pkg/build.sh
+
+      - name: Upload the macOS installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" \
+            dist/huaweicloud-cli-setup-macos.pkg \
+            dist/huaweicloud-cli-setup-macos.dmg \
+            --clobber

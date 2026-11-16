@@ -27,14 +27,17 @@ HWCloudCLI 尚未开源，也还没有官方发布仓库。本仓库暂时做两
 
 ## GitHub Releases
 
-临时发布版本创建为本仓库的 Release，标签即版本号（例如 `1.0.0`）。发布 Release 后，`.github/workflows/release-assets.yml` 会把该标签提交里 `debug/` 的安装包上传为同名附件，并按 `scripts/gen-sha256sums.sh` 的格式为这些实际上传的压缩包生成 `SHA256SUMS`，再作为同名附件上传：
+临时发布版本创建为本仓库的 Release，标签即版本号（例如 `1.0.0`）。发布 Release 后，`.github/workflows/release-assets.yml` 会把该标签提交里 `debug/` 的安装包上传为同名附件，并按 `scripts/gen-sha256sums.sh` 的格式为这些实际上传的压缩包生成 `SHA256SUMS`，再作为同名附件上传。同一流程还会构造安装器：Windows 安装器在 Ubuntu 上交叉编译，macOS 安装器在 macOS 运行环境中用 `pkgbuild` 和 `hdiutil` 生成。
 
 - `huaweicloud-cli-linux-amd64.tar.gz`
 - `huaweicloud-cli-linux-arm64.tar.gz`
 - `huaweicloud-cli-windows-amd64.zip`
 - `SHA256SUMS`
+- `huaweicloud-cli-setup-windows-amd64.exe`
+- `huaweicloud-cli-setup-macos.pkg`
+- `huaweicloud-cli-setup-macos.dmg`
 
-压缩包附件和 `debug/` 中的文件同名。`SHA256SUMS` 不保存在仓库里，只存在于 Release。各 Release 都要使用上面的压缩包文件名，默认的 `latest` 和 `-v <标签>` 才会下载到同一个路径。标签必须和 Release 的标签完全一致，例如 `1.2.0`，不要额外加上 `v` 前缀。workflow 只处理该标签所指向的提交；该提交的 `debug/` 里没有的包不会上传，也不会写入校验文件。
+压缩包附件和 `debug/` 中的文件同名。`SHA256SUMS` 不保存在仓库里，只存在于 Release，并且只覆盖上面三个 CLI 压缩包。安装器同样不保存在仓库里，由 workflow 从该标签提交的 `installer/` 构造后上传。各 Release 都要使用上面的压缩包文件名，默认的 `latest` 和 `-v <标签>` 才会下载到同一个路径。标签必须和 Release 的标签完全一致，例如 `1.2.0`，不要额外加上 `v` 前缀。workflow 只处理该标签所指向的提交；该提交的 `debug/` 里没有的 CLI 包不会上传，也不会写入校验文件。
 
 本地要对一组压缩包生成同样格式的校验文件时：
 
