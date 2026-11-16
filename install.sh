@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-# -v / --version 选择版本（默认 latest）。
+# -v / --version 选择 Release 标签，默认 latest。
 # Linux 安装到 /usr/local/bin/hcloud。
 # Windows（Git Bash / MSYS / Cygwin）安装到 %LOCALAPPDATA%\hcloud\hcloud.exe。
 #
-# 调试包和 Release 附件使用同一文件名：
+# Release 附件：
 #   Linux:   huaweicloud-cli-linux-<arch>.tar.gz
 #   Windows: huaweicloud-cli-windows-amd64.zip
 set -euo pipefail
 
 RELEASE_BASE="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-storage/releases}"
-DEBUG_BASE="${HCLOUD_DEBUG_BASE:-https://raw.githubusercontent.com/Lance52259/hcloud-cli-storage/master/debug}"
 INSTALL_DIR="${HCLOUD_INSTALL_DIR:-/usr/local/bin}"
 BIN_NAME="hcloud"
 
@@ -19,16 +18,15 @@ show_help() {
 HWCloudCLI installer
 
 -h                     Show this help and exit
--v, --version VERSION  Version to install. Default is latest.
-                       "debug" installs the current build from debug/.
+-v, --version VERSION  Release tag to install. Default is latest.
 
 Linux supports amd64 and arm64. Windows supports amd64.
 On Windows, run this script from Git Bash.
 
 Examples:
   install.sh
-  install.sh -v v0.1.0
-  install.sh --version debug
+  install.sh -v 1.2.0
+  install.sh --version latest
 
 EOF
 }
@@ -217,7 +215,7 @@ if [[ "$OS_FAMILY" == "windows" ]]; then
   fi
 fi
 
-if [[ "$VERSION" != "latest" && "$VERSION" != "debug" && ! "$VERSION" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+if [[ "$VERSION" != "latest" && ! "$VERSION" =~ ^[A-Za-z0-9._+-]+$ ]]; then
   abort "invalid version: ${VERSION}"
 fi
 
@@ -225,27 +223,14 @@ workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 
 if [[ "$OS_FAMILY" == "windows" ]]; then
-  if [[ "$VERSION" == "debug" ]]; then
-    archive="huaweicloud-cli-windows-${ARCH}.zip"
-    archive_url="${DEBUG_BASE}/${archive}"
-  else
-    archive="huaweicloud-cli-windows-${ARCH}.zip"
-    if [[ "$VERSION" == "latest" ]]; then
-      archive_url="${RELEASE_BASE}/latest/download/${archive}"
-    else
-      archive_url="${RELEASE_BASE}/download/${VERSION}/${archive}"
-    fi
-  fi
-elif [[ "$VERSION" == "debug" ]]; then
-  archive="huaweicloud-cli-linux-${ARCH}.tar.gz"
-  archive_url="${DEBUG_BASE}/${archive}"
+  archive="huaweicloud-cli-windows-${ARCH}.zip"
 else
   archive="huaweicloud-cli-linux-${ARCH}.tar.gz"
-  if [[ "$VERSION" == "latest" ]]; then
-    archive_url="${RELEASE_BASE}/latest/download/${archive}"
-  else
-    archive_url="${RELEASE_BASE}/download/${VERSION}/${archive}"
-  fi
+fi
+if [[ "$VERSION" == "latest" ]]; then
+  archive_url="${RELEASE_BASE}/latest/download/${archive}"
+else
+  archive_url="${RELEASE_BASE}/download/${VERSION}/${archive}"
 fi
 
 printf 'Installing HWCloudCLI (%s, %s/%s)...\n' "$VERSION" "$OS_FAMILY" "$ARCH"
