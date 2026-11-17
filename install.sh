@@ -8,7 +8,7 @@
 #   Windows: huaweicloud-cli-windows-amd64.zip
 set -euo pipefail
 
-RELEASE_BASE="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-storage/releases}"
+RELEASE_BASE="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-installer/releases}"
 INSTALL_DIR="${HCLOUD_INSTALL_DIR:-/usr/local/bin}"
 BIN_NAME="hcloud"
 

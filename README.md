@@ -1,4 +1,4 @@
-# hcloud-cli-storage
+# hcloud-cli-installer
 
 HWCloudCLI 尚未开源，也还没有官方发布仓库。本仓库暂时做两件事：
 
@@ -59,10 +59,10 @@ bash install.sh --version latest
 
 ```bash
 # 下载最新版本的CLI
-curl -fsSL https://raw.githubusercontent.com/Lance52259/hcloud-cli-storage/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Lance52259/hcloud-cli-installer/master/install.sh | bash
 
 # 下载指定版本的CLI
-curl -fsSL https://raw.githubusercontent.com/Lance52259/hcloud-cli-storage/master/install.sh | bash -s -- -v 1.2.0
+curl -fsSL https://raw.githubusercontent.com/Lance52259/hcloud-cli-installer/master/install.sh | bash -s -- -v 1.2.0
 ```
 
 | 参数 | 说明 | 默认 |

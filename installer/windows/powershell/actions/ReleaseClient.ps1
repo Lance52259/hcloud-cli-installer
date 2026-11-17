@@ -1,7 +1,7 @@
 ﻿# 从 GitHub Releases 查询、下载并校验 Windows 安装包。不读取 debug/ 目录。
 
 if ([string]::IsNullOrWhiteSpace($env:HCLOUD_RELEASE_DOWNLOAD_BASE)) {
-    $script:HcloudReleaseBase = 'https://github.com/Lance52259/hcloud-cli-storage/releases'
+    $script:HcloudReleaseBase = 'https://github.com/Lance52259/hcloud-cli-installer/releases'
 } else {
     $script:HcloudReleaseBase = $env:HCLOUD_RELEASE_DOWNLOAD_BASE.TrimEnd('/')
 }
