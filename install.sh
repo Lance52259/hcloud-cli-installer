@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
+# 安装 Linux 上的华为云命令行工具。
 # -v / --version 选择 Release 标签，默认 latest。
-# Linux 安装到 /usr/local/bin/hcloud。
-# Windows（Git Bash / MSYS / Cygwin）安装到 %LOCALAPPDATA%\hcloud\hcloud.exe。
-#
-# Release 附件：
-#   Linux:   huaweicloud-cli-linux-<arch>.tar.gz
-#   Windows: huaweicloud-cli-windows-amd64.zip
+# 安装到 /usr/local/bin/hcloud。
+# 发布文件名是 hcloud-linux-<arch>-<标签>.tar.gz。
 set -euo pipefail
 
 RELEASE_BASE="${HCLOUD_RELEASE_DOWNLOAD_BASE:-https://github.com/Lance52259/hcloud-cli-installer/releases}"
@@ -20,8 +17,8 @@ HWCloudCLI installer
 -h                     Show this help and exit
 -v, --version VERSION  Release tag to install. Default is latest.
 
-Linux supports amd64 and arm64. Windows supports amd64.
-On Windows, run this script from Git Bash.
+Linux supports amd64 and arm64.
+Windows and macOS use the offline installers from the same Release.
 
 Examples:
   install.sh
@@ -54,6 +51,56 @@ fetch() {
   curl -fsSL --retry 3 --retry-delay 1 -o "$dest" "$url" || abort "download failed: ${url}"
 }
 
+file_sha256() {
+  local path=$1
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$path" | awk '{ print $1 }'
+    return
+  fi
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$path" | awk '{ print $1 }'
+    return
+  fi
+  abort "sha256sum or shasum is required."
+}
+
+resolve_latest_tag() {
+  local base owner repo api body tag
+  base=${RELEASE_BASE%/}
+  case "$base" in
+    https://github.com/*/*/releases)
+      owner=$(printf '%s' "$base" | cut -d/ -f4)
+      repo=$(printf '%s' "$base" | cut -d/ -f5)
+      ;;
+    *)
+      abort "cannot resolve latest from ${base}; pass -v with a release tag."
+      ;;
+  esac
+  api="https://api.github.com/repos/${owner}/${repo}/releases/latest"
+  body=$(curl -fsSL --retry 3 --retry-delay 1 -H 'Accept: application/vnd.github+json' "$api") \
+    || abort "cannot query the latest release."
+  tag=$(printf '%s' "$body" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)
+  if [[ ! "$tag" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+    abort "invalid latest release tag."
+  fi
+  printf '%s' "$tag"
+}
+
+verify_archive() {
+  local archive_path=$1
+  local sums_path=$2
+  local name=$3
+  local expected actual
+  expected=$(awk -v name="$name" '$2 == name { print $1; exit }' "$sums_path")
+  if [[ -z "$expected" ]]; then
+    abort "SHA256SUMS does not list ${name}."
+  fi
+  actual=$(file_sha256 "$archive_path")
+  if [[ "$actual" != "$expected" ]]; then
+    abort "SHA256 mismatch for ${name}."
+  fi
+}
+
 place_binary() {
   local src=$1
   local dest="${INSTALL_DIR}/${BIN_NAME}"
@@ -72,9 +119,6 @@ place_binary() {
   fi
 
   if [[ "$use_sudo" -eq 1 ]]; then
-    if [[ "$OS_FAMILY" == "windows" ]]; then
-      abort "cannot write to ${INSTALL_DIR}."
-    fi
     if ! command -v sudo >/dev/null 2>&1; then
       abort "cannot write to ${INSTALL_DIR}; rerun with sudo."
     fi
@@ -87,77 +131,6 @@ place_binary() {
     chmod 755 "$dest"
   fi
   printf 'installed: %s\n' "$dest"
-  if [[ "$OS_FAMILY" == "windows" ]]; then
-    add_windows_user_path
-  fi
-}
-
-add_windows_user_path() {
-  local dir_win ps1
-  if ! command -v powershell.exe >/dev/null 2>&1 || ! command -v cygpath >/dev/null 2>&1; then
-    printf 'Open a new terminal, then run: hcloud version\n'
-    return
-  fi
-  dir_win=$(cygpath -w "$INSTALL_DIR")
-  ps1="${workdir}/add-path.ps1"
-  cat >"$ps1" <<'EOF'
-param([Parameter(Mandatory = $true)][string]$Dir)
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-if ($null -eq $userPath) { $userPath = '' }
-$normalized = $Dir.TrimEnd('\')
-$exists = $false
-foreach ($part in ($userPath -split ';')) {
-  if ($part.TrimEnd('\') -ieq $normalized) {
-    $exists = $true
-    break
-  }
-}
-if (-not $exists) {
-  if ($userPath -eq '') {
-    $updated = $Dir
-  } else {
-    $updated = $userPath.TrimEnd(';') + ';' + $Dir
-  }
-  [Environment]::SetEnvironmentVariable('Path', $updated, 'User')
-  Write-Output "Added to user PATH: $Dir"
-} else {
-  Write-Output "User PATH already contains: $Dir"
-}
-Write-Output "This window still has the old PATH."
-Write-Output "Open a new PowerShell window and run: hcloud version"
-Write-Output "Or run this in the current window:"
-Write-Output ('  $env:Path += ";' + $Dir + '"')
-EOF
-  powershell.exe -NoProfile -NonInteractive -File "$(cygpath -w "$ps1")" -Dir "$dir_win"
-}
-
-extract_zip() {
-  local archive_path=$1
-  local dest=$2
-  if command -v unzip >/dev/null 2>&1; then
-    unzip -oq "$archive_path" -d "$dest"
-    return
-  fi
-  if command -v powershell.exe >/dev/null 2>&1 && command -v cygpath >/dev/null 2>&1; then
-    powershell.exe -NoProfile -NonInteractive -Command "Expand-Archive -Force -LiteralPath '$(cygpath -w "$archive_path")' -DestinationPath '$(cygpath -w "$dest")'"
-    return
-  fi
-  abort "unzip is required to extract the Windows archive."
-}
-
-install_archive() {
-  local archive_url=$1
-  local archive_name=$2
-  fetch "$archive_url" "${workdir}/${archive_name}"
-  case "$archive_name" in
-    *.zip) extract_zip "${workdir}/${archive_name}" "$workdir" ;;
-    *) tar zxf "${workdir}/${archive_name}" -C "$workdir" ;;
-  esac
-  if [[ ! -f "${workdir}/${BIN_NAME}" ]]; then
-    abort "archive has no top-level ${BIN_NAME} executable."
-  fi
-  chmod +x "${workdir}/${BIN_NAME}"
-  place_binary "${workdir}/${BIN_NAME}"
 }
 
 VERSION="latest"
@@ -187,51 +160,44 @@ done
 
 kernel=$(uname -s)
 case "$kernel" in
-  Linux) OS_FAMILY="linux" ;;
-  MINGW*|MSYS*|CYGWIN*) OS_FAMILY="windows" ;;
-  *) abort "only Linux and Windows are supported." ;;
+  Linux) ;;
+  MINGW*|MSYS*|CYGWIN*)
+    abort "On Windows, run the offline installer hcloudSetup-windows-x64-<version>.exe from the Release."
+    ;;
+  Darwin)
+    abort "On macOS, open the offline installer hcloudsetup-darwin-<arch>-<version>.pkg from the Release."
+    ;;
+  *) abort "only Linux is supported by this script." ;;
 esac
 
 machine=$(uname -m)
 case "$machine" in
   x86_64|amd64) ARCH="amd64" ;;
-  aarch64|arm64)
-    if [[ "$OS_FAMILY" == "windows" ]]; then
-      abort "only amd64 is supported on Windows, found: ${machine}"
-    fi
-    ARCH="arm64"
-    ;;
+  aarch64|arm64) ARCH="arm64" ;;
   *) abort "only amd64 and arm64 are supported, found: ${machine}" ;;
 esac
-
-if [[ "$OS_FAMILY" == "windows" ]]; then
-  BIN_NAME="hcloud.exe"
-  if [[ -z "${HCLOUD_INSTALL_DIR:-}" ]]; then
-    if [[ -n "${LOCALAPPDATA:-}" ]] && command -v cygpath >/dev/null 2>&1; then
-      INSTALL_DIR="$(cygpath -u "$LOCALAPPDATA")/hcloud"
-    else
-      INSTALL_DIR="${HOME}/hcloud"
-    fi
-  fi
-fi
 
 if [[ "$VERSION" != "latest" && ! "$VERSION" =~ ^[A-Za-z0-9._+-]+$ ]]; then
   abort "invalid version: ${VERSION}"
 fi
+if [[ "$VERSION" == "latest" ]]; then
+  VERSION=$(resolve_latest_tag)
+fi
+
+archive="hcloud-linux-${ARCH}-${VERSION}.tar.gz"
+archive_url="${RELEASE_BASE%/}/download/${VERSION}/${archive}"
+sums_url="${RELEASE_BASE%/}/download/${VERSION}/SHA256SUMS"
 
 workdir=$(mktemp -d)
 trap 'rm -rf "$workdir"' EXIT
 
-if [[ "$OS_FAMILY" == "windows" ]]; then
-  archive="huaweicloud-cli-windows-${ARCH}.zip"
-else
-  archive="huaweicloud-cli-linux-${ARCH}.tar.gz"
+printf 'Installing HWCloudCLI (%s, linux/%s)...\n' "$VERSION" "$ARCH"
+fetch "$archive_url" "${workdir}/${archive}"
+fetch "$sums_url" "${workdir}/SHA256SUMS"
+verify_archive "${workdir}/${archive}" "${workdir}/SHA256SUMS" "$archive"
+tar zxf "${workdir}/${archive}" -C "$workdir"
+if [[ ! -f "${workdir}/${BIN_NAME}" ]]; then
+  abort "archive has no top-level ${BIN_NAME} executable."
 fi
-if [[ "$VERSION" == "latest" ]]; then
-  archive_url="${RELEASE_BASE}/latest/download/${archive}"
-else
-  archive_url="${RELEASE_BASE}/download/${VERSION}/${archive}"
-fi
-
-printf 'Installing HWCloudCLI (%s, %s/%s)...\n' "$VERSION" "$OS_FAMILY" "$ARCH"
-install_archive "$archive_url" "$archive"
+chmod +x "${workdir}/${BIN_NAME}"
+place_binary "${workdir}/${BIN_NAME}"

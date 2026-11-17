@@ -22,39 +22,42 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
 
-      - name: Upload debug packages as release assets
+      - name: Upload Linux packages
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          assets=()
-          if [[ -f debug/huaweicloud-cli-linux-amd64.tar.gz ]]; then
-            assets+=("debug/huaweicloud-cli-linux-amd64.tar.gz")
-          fi
-          if [[ -f debug/huaweicloud-cli-linux-arm64.tar.gz ]]; then
-            assets+=("debug/huaweicloud-cli-linux-arm64.tar.gz")
-          fi
-          if [[ -f debug/huaweicloud-cli-windows-amd64.zip ]]; then
-            assets+=("debug/huaweicloud-cli-windows-amd64.zip")
-          fi
-          if [[ ${#assets[@]} -eq 0 ]]; then
-            echo "The release tag has no packages under debug/." >&2
+          if [[ ! "$TAG" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+            echo "Invalid release tag: $TAG" >&2
             exit 1
           fi
           stage=$(mktemp -d)
-          names=()
-          for path in "${assets[@]}"; do
-            cp -- "$path" "$stage/"
-            names+=("$(basename -- "$path")")
-          done
-          mapfile -t names < <(printf '%s\n' "${names[@]}" | sort)
+          missing=0
+          copy_named() {
+            local source=$1
+            local name=$2
+            if [[ ! -f "$source" ]]; then
+              echo "Missing $source" >&2
+              missing=1
+              return
+            fi
+            cp "$source" "$stage/$name"
+          }
+          copy_named debug/huaweicloud-cli-linux-amd64.tar.gz "hcloud-linux-amd64-${TAG}.tar.gz"
+          copy_named debug/huaweicloud-cli-linux-arm64.tar.gz "hcloud-linux-arm64-${TAG}.tar.gz"
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
           (
             cd "$stage"
-            sha256sum -- "${names[@]}"
+            sha256sum -- hcloud-linux-amd64-${TAG}.tar.gz hcloud-linux-arm64-${TAG}.tar.gz
           ) >"$stage/SHA256SUMS"
-          assets+=("$stage/SHA256SUMS")
-          gh release upload "$TAG" "${assets[@]}" --clobber
+          gh release upload "$TAG" \
+            "$stage/hcloud-linux-amd64-${TAG}.tar.gz" \
+            "$stage/hcloud-linux-arm64-${TAG}.tar.gz" \
+            "$stage/SHA256SUMS" \
+            --clobber
 
   setup-windows:
     runs-on: ubuntu-latest
@@ -70,22 +73,16 @@ jobs:
           go-version-file: installer/windows/go.mod
 
       - name: Build the Windows installer
-        working-directory: installer/windows
         env:
-          CGO_ENABLED: "0"
-          GOOS: windows
-          GOARCH: amd64
-        run: |
-          set -euo pipefail
-          go build -ldflags "-H windowsgui -s -w" -o huaweicloud-cli-setup-windows-amd64.exe .
+          HCLOUD_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+        run: bash installer/windows/build.sh
 
       - name: Upload the Windows installer
-        working-directory: installer/windows
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
         run: |
-          gh release upload "$TAG" huaweicloud-cli-setup-windows-amd64.exe --clobber
+          gh release upload "$TAG" "installer/windows/hcloudSetup-windows-x64-${TAG}.exe" --clobber
 
   setup-macos:
     runs-on: macos-latest
@@ -95,15 +92,21 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
 
-      - name: Build the macOS installer
+      - name: Build the macOS installers
+        env:
+          HCLOUD_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
         run: bash installer/macos/pkg/build.sh
 
-      - name: Upload the macOS installer
+      - name: Upload the macOS installers
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
         run: |
           gh release upload "$TAG" \
-            dist/huaweicloud-cli-setup-macos.pkg \
-            dist/huaweicloud-cli-setup-macos.dmg \
+            "dist/hcloudsetup-darwin-arm64-${TAG}.pkg" \
+            "dist/hcloudsetup-darwin-arm64-${TAG}.dmg" \
+            "dist/hcloudsetup-darwin-x64-${TAG}.pkg" \
+            "dist/hcloudsetup-darwin-x64-${TAG}.dmg" \
+            "dist/hcloudsetup-darwin-universal-${TAG}.pkg" \
+            "dist/hcloudsetup-darwin-universal-${TAG}.dmg" \
             --clobber

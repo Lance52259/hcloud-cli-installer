@@ -1,10 +1,62 @@
 #!/bin/bash
-# 安装包结束时打开向导。用当前登录用户启动，避免以 root 运行界面。
+# 从安装脚本目录中的压缩包安装 hcloud。压缩包不会留在目标磁盘上。
 
-app="/Applications/HcloudSetup.app"
-console_user=$(stat -f '%Su' /dev/console 2>/dev/null || true)
-if [ -n "$console_user" ] && [ "$console_user" != "root" ] && [ -d "$app" ]; then
-  uid=$(id -u "$console_user")
-  launchctl asuser "$uid" open "$app" || sudo -u "$console_user" open "$app" || true
+set -euo pipefail
+
+fail() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+here=$(cd "$(dirname "$0")" && pwd)
+variant=$(tr -d '[:space:]' <"$here/variant")
+tag=$(tr -d '[:space:]' <"$here/version")
+[ -n "$variant" ] || fail "安装包缺少架构标记。"
+[ -n "$tag" ] || fail "安装包缺少版本号。"
+
+case "$(uname -m)" in
+  arm64) host=arm64; archive=huaweicloud-cli-darwin-arm64.tar.gz ;;
+  x86_64) host=x64; archive=huaweicloud-cli-darwin-amd64.tar.gz ;;
+  *) fail "当前 Mac 架构不受支持。" ;;
+esac
+
+if [ "$variant" != "universal" ] && [ "$variant" != "$host" ]; then
+  fail "此安装包适用于 ${variant}，当前系统是 ${host}。未写入 /usr/local/bin/hcloud。"
 fi
+
+archive_path="$here/$archive"
+[ -f "$archive_path" ] || fail "安装包内没有 ${archive}。"
+[ -f "$here/SHA256SUMS" ] || fail "安装包内没有校验信息。"
+
+expected=$(awk -v name="$archive" '$2 == name { print $1; exit }' "$here/SHA256SUMS")
+actual=$(shasum -a 256 "$archive_path" | awk '{ print $1 }')
+if [ -z "$expected" ] || [ "$actual" != "$expected" ]; then
+  fail "安装包校验失败，已停止。未改动已有文件。"
+fi
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+tar -xzf "$archive_path" -C "$work"
+[ -f "$work/hcloud" ] || fail "压缩包顶层没有 hcloud。未改动已有文件。"
+
+volume="${3:-/}"
+case "$volume" in
+  ""|"/") prefix="" ;;
+  *) prefix="${volume%/}" ;;
+esac
+bin_dir="${prefix}/usr/local/bin"
+share_dir="${prefix}/usr/local/share/hcloud"
+mkdir -p "$bin_dir" "$share_dir"
+
+temporary="${bin_dir}/.hcloud-setup.$$"
+if ! cp "$work/hcloud" "$temporary"; then
+  rm -f "$temporary"
+  fail "无法写入 ${bin_dir}/hcloud。未改动已有文件。"
+fi
+chmod 755 "$temporary"
+if ! mv -f "$temporary" "${bin_dir}/hcloud"; then
+  rm -f "$temporary"
+  fail "无法替换 ${bin_dir}/hcloud。未改动已有文件。"
+fi
+printf '%s\n' "$tag" >"${share_dir}/version"
 exit 0

@@ -1,37 +1,66 @@
-// Windows 安装器启动程序。发布时编译为 huaweicloud-cli-setup-windows-amd64.exe。
-// 脚本位置相对本程序固定为同目录下的 setup.ps1。
+// Windows 离线安装器。发布时编译为 hcloudSetup-windows-x64-<版本>.exe。
+// 构建前把 debug/huaweicloud-cli-windows-amd64.zip 复制到 payload/，并写入版本号与 SHA256：
 //
-// 在本目录重新构建：
-//
-//	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-H windowsgui -s -w" -o huaweicloud-cli-setup-windows-amd64.exe .
+//	HCLOUD_RELEASE_TAG=1.2.0 bash build.sh
 package main
 
 import (
-	"bytes"
-	"fmt"
+	"crypto/sha256"
+	_ "embed"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 	"unsafe"
 )
 
+//go:embed payload/huaweicloud-cli-windows-amd64.zip
+var payloadZip []byte
+
+//go:embed scripts/setup.ps1
+var setupScript []byte
+
+//go:embed actions/PathRegistry.ps1
+var pathRegistry []byte
+
+//go:embed actions/Invoke-Elevated.ps1
+var invokeElevated []byte
+
+var releaseTag = ""
+var payloadSHA256 = ""
+
 func main() {
-	code := run()
-	os.Exit(code)
+	os.Exit(run())
 }
 
 func run() int {
-	exe, err := os.Executable()
-	if err != nil {
-		showError("无法确定安装程序位置。\n" + err.Error())
+	tag := strings.TrimSpace(releaseTag)
+	sum := strings.ToLower(strings.TrimSpace(payloadSHA256))
+	if tag == "" || sum == "" {
+		showError("安装器未写入版本号。")
 		return 1
 	}
-	script := filepath.Join(filepath.Dir(exe), "setup.ps1")
-	if _, err = os.Stat(script); err != nil {
-		showError("找不到安装脚本：\n" + script)
+	digest := sha256.Sum256(payloadZip)
+	if hex.EncodeToString(digest[:]) != sum {
+		showError("安装包校验失败，无法启动安装程序。")
+		return 1
+	}
+
+	root, err := os.MkdirTemp("", "hcloud-setup-")
+	if err != nil {
+		showError("无法准备安装程序。\n" + err.Error())
+		return 1
+	}
+	defer os.RemoveAll(root)
+	archive := filepath.Join(root, "huaweicloud-cli-windows-amd64.zip")
+	script := filepath.Join(root, "setup.ps1")
+	if writeFile(archive, payloadZip) != nil ||
+		writeFile(script, setupScript) != nil ||
+		writeFile(filepath.Join(root, "actions", "PathRegistry.ps1"), pathRegistry) != nil ||
+		writeFile(filepath.Join(root, "actions", "Invoke-Elevated.ps1"), invokeElevated) != nil {
+		showError("无法准备安装程序。")
 		return 1
 	}
 
@@ -43,33 +72,24 @@ func run() int {
 		systemRoot = `C:\Windows`
 	}
 	powershell := filepath.Join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-	if _, err = os.Stat(powershell); err != nil {
-		showError("找不到 Windows PowerShell：\n" + powershell)
-		return 1
-	}
-
 	command := exec.Command(powershell,
 		"-NoProfile",
 		"-STA",
 		"-ExecutionPolicy", "Bypass",
 		"-File", script,
+		"-Archive", archive,
+		"-Version", tag,
+		"-Sha256", sum,
 	)
-	command.Dir = filepath.Dir(script)
-	var output bytes.Buffer
-	command.Stdout = &output
-	command.Stderr = &output
-	writeLog("启动 PowerShell：" + powershell)
-	writeLog("安装脚本：" + script)
-	err = command.Run()
+	command.Dir = root
+	output, err := command.CombinedOutput()
 	if err == nil {
-		writeLog("安装程序已退出。")
 		return 0
 	}
-	detail := strings.TrimSpace(output.String())
+	detail := strings.TrimSpace(string(output))
 	if detail == "" {
 		detail = err.Error()
 	}
-	writeLog("启动失败：" + detail)
 	showError("无法启动安装程序。\n" + detail)
 	if exitErr, ok := err.(*exec.ExitError); ok {
 		return exitErr.ExitCode()
@@ -77,22 +97,11 @@ func run() int {
 	return 1
 }
 
-func writeLog(text string) {
-	dir := os.Getenv("TEMP")
-	if dir == "" {
-		dir = os.Getenv("TMP")
+func writeFile(path string, content []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
 	}
-	if dir == "" {
-		return
-	}
-	path := filepath.Join(dir, "hcloud-setup.log")
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	line := fmt.Sprintf("%s %s\r\n", time.Now().Format("2006-01-02 15:04:05.000"), strings.ReplaceAll(text, "\n", " | "))
-	_, _ = file.WriteString(line)
+	return os.WriteFile(path, content, 0o644)
 }
 
 func showError(text string) {
