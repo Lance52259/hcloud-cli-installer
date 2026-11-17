@@ -1,5 +1,5 @@
 // Windows 安装器启动程序。发布时编译为 huaweicloud-cli-setup-windows-amd64.exe。
-// 脚本位置相对本程序固定为 ..\powershell\HcloudSetup.ps1。
+// 脚本位置相对本程序固定为同目录下的 setup.ps1。
 //
 // 在本目录重新构建：
 //
@@ -29,7 +29,7 @@ func run() int {
 		showError("无法确定安装程序位置。\n" + err.Error())
 		return 1
 	}
-	script := filepath.Clean(filepath.Join(filepath.Dir(exe), "..", "powershell", "HcloudSetup.ps1"))
+	script := filepath.Join(filepath.Dir(exe), "setup.ps1")
 	if _, err = os.Stat(script); err != nil {
 		showError("找不到安装脚本：\n" + script)
 		return 1
