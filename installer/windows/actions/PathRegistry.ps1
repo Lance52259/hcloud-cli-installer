@@ -254,7 +254,22 @@ function Copy-HcloudExecutable {
     if (-not (Test-Path -LiteralPath $parent)) {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
-    Copy-Item -LiteralPath $Source -Destination $Destination -Force
+    $temporary = Join-Path $parent ('.hcloud-' + [guid]::NewGuid().ToString('n') + '.tmp')
+    try {
+        [System.IO.File]::Copy($Source, $temporary, $true)
+        if (Test-Path -LiteralPath $Destination) {
+            $backup = $Destination + '.bak'
+            [System.IO.File]::Replace($temporary, $Destination, $backup)
+            Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+        } else {
+            [System.IO.File]::Move($temporary, $Destination)
+        }
+    } catch {
+        if (Test-Path -LiteralPath $temporary) {
+            Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
+        }
+        throw
+    }
     Unblock-File -LiteralPath $Destination -ErrorAction SilentlyContinue
 }
 

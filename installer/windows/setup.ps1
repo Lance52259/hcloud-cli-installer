@@ -1,9 +1,5 @@
-﻿# 华为云命令行工具的 Windows 图形安装器。
-# 安装器不包含 CLI 本体，进度步骤从 GitHub Releases 下载。
-#
-# 在 Windows PowerShell 中运行：
-#   powershell -NoProfile -ExecutionPolicy Bypass -STA -File installer\windows\setup.ps1
-# 发布出的 huaweicloud-cli-setup-windows-amd64.exe 用同样的参数启动本脚本。
+﻿# 旧的在线安装向导。发布的 Windows 安装器不再启动本脚本。
+# 发布的 exe 由 installer/windows/build.sh 生成，并内嵌 scripts/setup.ps1。
 #Requires -Version 5.1
 
 $ErrorActionPreference = 'Stop'

@@ -1,8 +1,6 @@
 #!/bin/bash
-# 华为云命令行工具的 macOS 图形安装器。
-# 安装器不包含 CLI 本体。
-# 发给用户的启动文件是 huaweicloud-cli-setup-macos.pkg，由 pkg/build.sh 在 macOS 上生成。
-# 本脚本是向导入口，开发时可以直接运行；打进 .app 后从 Contents/MacOS 启动。
+# 开发时可以直接运行的 macOS 向导。
+# 发给用户的安装包由 pkg/build.sh 生成，安装过程不启动本脚本。
 
 set -euo pipefail
 
